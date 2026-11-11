@@ -26,7 +26,11 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS, TfidfVectorizer
 from sklearn.preprocessing import normalize
 
-st.set_page_config(page_title="Research Paper Recommender", page_icon="📚", layout="wide")
+st.set_page_config(
+    page_title="Research Paper Recommender",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
 # Hyper-parameters selected on the validation queries in the final notebook (sections 9-11).
 K_MAX = 1000     # rank of the SVD
@@ -46,12 +50,28 @@ EMB_MODELS = {   # key: (Hugging Face model name, maximum number of tokens read)
     "bge": ("BAAI/bge-base-en-v1.5", 384),
 }
 
-DEEP_LABEL = "G: Deep fusion — transformer embeddings + least squares (best)"
+DEEP_LABEL = "G — Deep fusion (embeddings + least squares)"
 METHODS = {
-    "D: Fusion — learned metric + TF-IDF": "fusion",
-    "C: SVD + least-squares learned metric (200 dims)": "supervised",
-    "B: SVD / LSA (k = 300)": "svd",
-    "A: TF-IDF baseline (31,291 dims)": "tfidf",
+    "D — Fusion (learned metric + TF-IDF)": "fusion",
+    "C — Learned metric on SVD (200-d)": "supervised",
+    "B — SVD / LSA (k = 300)": "svd",
+    "A — TF-IDF baseline": "tfidf",
+}
+
+METHOD_BLURB = {
+    "deep": "Pretrained transformer embeddings fused with a least-squares metric on SVD features.",
+    "fusion": "Learned 200-d metric fused with full TF-IDF cosine similarity.",
+    "supervised": "Ridge least-squares map on the SVD space, reduced to 200 dimensions.",
+    "svd": "Rank-300 latent semantic space via truncated SVD.",
+    "tfidf": "Full sparse TF-IDF term space (cosine = dot product on unit rows).",
+}
+
+PRECISION = {
+    "deep": 0.881,
+    "fusion": 0.801,
+    "supervised": 0.799,
+    "svd": 0.712,
+    "tfidf": 0.699,
 }
 
 # ----------------------------------------------------------------------------- preprocessing
@@ -171,46 +191,433 @@ def recommend(query, M, method, k, encoders=None):
 
 
 # ----------------------------------------------------------------------------- UI
-st.title("📚 Research Paper Recommendation System")
-st.caption("Vector-space models + linear-algebraic dimensionality reduction (SVD / LSA) and least squares — "
-           "Mathematical Foundations for Computer Science")
+def inject_styles():
+    st.markdown(
+        """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&display=swap');
+
+:root {
+  --ink: #15202b;
+  --muted: #5c6b7a;
+  --line: #d7dee6;
+  --paper: #f4f7fa;
+  --surface: #ffffff;
+  --accent: #1f6f78;
+  --accent-soft: #e6f2f3;
+  --rank: #8a96a3;
+}
+
+html, body, [class*="css"] {
+  font-family: "IBM Plex Sans", sans-serif;
+  color: var(--ink);
+}
+
+.stApp {
+  background:
+    radial-gradient(1200px 500px at 8% -10%, #e8eef4 0%, transparent 55%),
+    radial-gradient(900px 420px at 100% 0%, #e7f1f1 0%, transparent 50%),
+    linear-gradient(180deg, #f7f9fb 0%, var(--paper) 40%, #eef2f6 100%);
+}
+
+[data-testid="stHeader"] { background: transparent; }
+[data-testid="stToolbar"] { right: 1rem; }
+[data-testid="stSidebar"] {
+  background: linear-gradient(180deg, #fbfcfd 0%, #f1f5f8 100%);
+  border-right: 1px solid var(--line);
+}
+[data-testid="stSidebar"] * { font-family: "IBM Plex Sans", sans-serif !important; }
+
+.block-container {
+  padding-top: 2.25rem !important;
+  padding-bottom: 3.5rem !important;
+  max-width: 1080px;
+}
+
+#MainMenu, footer { visibility: hidden; }
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.35rem;
+  border-bottom: 1px solid var(--line);
+}
+.brand-kicker {
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 600;
+}
+.brand h1 {
+  font-family: "Source Serif 4", Georgia, serif !important;
+  font-size: 2.15rem !important;
+  font-weight: 600 !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.02em;
+  color: var(--ink) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+}
+.brand p {
+  margin: 0;
+  max-width: 42rem;
+  color: var(--muted);
+  font-size: 0.98rem;
+  line-height: 1.55;
+}
+
+.corpus-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin: 0 0 1.5rem 0;
+}
+.corpus-cell {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 0.9rem 1rem;
+}
+.corpus-cell .label {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+}
+.corpus-cell .value {
+  margin-top: 0.35rem;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.45rem;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+
+.search-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 1.15rem 1.2rem 0.35rem 1.2rem;
+  margin-bottom: 0.35rem;
+}
+.search-panel .panel-title {
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 0.55rem;
+}
+
+.result-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: 1.4rem 0 0.85rem 0;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--line);
+}
+.result-bar .summary {
+  font-size: 0.92rem;
+  color: var(--ink);
+  font-weight: 500;
+}
+.result-bar .meta {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.topics {
+  margin: 0 0 1.1rem 0;
+  font-size: 0.86rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.topics strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.paper {
+  display: grid;
+  grid-template-columns: 2.4rem 1fr auto;
+  gap: 0.85rem 1rem;
+  align-items: start;
+  padding: 1.05rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.paper:last-child { border-bottom: none; }
+.rank {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.05rem;
+  color: var(--rank);
+  font-weight: 600;
+  padding-top: 0.12rem;
+}
+.paper-title {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.08rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink);
+  margin: 0 0 0.35rem 0;
+}
+.paper-meta {
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.45;
+  margin: 0;
+}
+.domain {
+  display: inline-block;
+  margin-top: 0.45rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid #c9e0e2;
+  padding: 0.18rem 0.45rem;
+  border-radius: 2px;
+  font-weight: 600;
+}
+.score {
+  text-align: right;
+  min-width: 4.5rem;
+}
+.score .num {
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+.score .lbl {
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
+
+div[data-testid="stTextInput"] label {
+  font-size: 0.78rem !important;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted) !important;
+  font-weight: 600 !important;
+}
+div[data-testid="stTextInput"] input {
+  border-radius: 2px !important;
+  border: 1px solid var(--line) !important;
+  background: #fbfcfd !important;
+  font-size: 0.98rem !important;
+  padding: 0.7rem 0.85rem !important;
+  color: var(--ink) !important;
+}
+div[data-testid="stTextInput"] input:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 1px var(--accent) !important;
+}
+
+[data-testid="stExpander"] {
+  border: none !important;
+  background: transparent !important;
+  margin-top: 0.35rem;
+}
+[data-testid="stExpander"] details {
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: #fafbfc;
+}
+[data-testid="stExpander"] summary {
+  font-size: 0.8rem !important;
+  color: var(--muted) !important;
+  font-weight: 500 !important;
+}
+[data-testid="stExpander"] p {
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: #334155;
+}
+
+.sidebar-section {
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+  margin: 0.4rem 0 0.75rem 0;
+}
+.sidebar-note {
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.45;
+  margin-top: 0.85rem;
+}
+.method-note {
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.45;
+  margin: 0.35rem 0 1rem 0;
+  padding: 0.65rem 0.75rem;
+  background: var(--accent-soft);
+  border-left: 2px solid var(--accent);
+}
+
+div[data-testid="stMetricValue"] {
+  font-family: "Source Serif 4", Georgia, serif !important;
+  font-size: 1.35rem !important;
+}
+div[data-testid="stMetricLabel"] {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.68rem !important;
+}
+</style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def esc(text) -> str:
+    return (
+        str(text)
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
+inject_styles()
+
+st.markdown(
+    """
+<div class="brand">
+  <div class="brand-kicker">Mathematical Foundations for Computer Science · Group 05</div>
+  <h1>Research Paper Recommendation System</h1>
+  <p>Retrieve related work from a curated OpenAlex corpus using vector-space models,
+  SVD / LSA dimensionality reduction, and least-squares learned metrics.</p>
+</div>
+    """,
+    unsafe_allow_html=True,
+)
 
 M = build_model()
 encoders = load_encoders() if M["deep"] else None
 methods = ({DEEP_LABEL: "deep"} if encoders else {}) | METHODS
 
-with st.sidebar:
-    st.header("Settings")
-    label = st.radio("Representation", list(methods), index=0,
-                     help="A = full TF-IDF space. B = rank-300 SVD latent space. "
-                          "C = 200-dimensional learned metric on the SVD space. D = C fused with A. "
-                          "G = pretrained transformer embeddings + SVD features through the same least-squares map.")
-    topk = st.slider("Number of recommendations", 3, 20, 5)
-    st.markdown("---")
-    st.metric("Papers in corpus", f"{len(M['df']):,}")
-    st.metric("Domains", M["df"]["domain"].nunique())
-    st.caption("Test-set Precision@10: A 0.699 · B 0.712 · C 0.799 · D 0.801 · G 0.881")
-    if not encoders:
-        st.caption("Approach G is hidden: it needs torch, sentence-transformers and data/paper_embeddings.npz.")
+n_papers = len(M["df"])
+n_domains = int(M["df"]["domain"].nunique())
+n_years = int(M["df"]["year"].dropna().nunique()) if "year" in M["df"].columns else 0
 
-query = st.text_input("Enter a research query", value="adversarial attacks on image classifiers")
+st.markdown(
+    f"""
+<div class="corpus-strip">
+  <div class="corpus-cell"><div class="label">Papers indexed</div><div class="value">{n_papers:,}</div></div>
+  <div class="corpus-cell"><div class="label">Research domains</div><div class="value">{n_domains}</div></div>
+  <div class="corpus-cell"><div class="label">Publication years</div><div class="value">{n_years}</div></div>
+</div>
+    """,
+    unsafe_allow_html=True,
+)
+
+with st.sidebar:
+    st.markdown('<div class="sidebar-section">Retrieval settings</div>', unsafe_allow_html=True)
+    label = st.radio(
+        "Representation",
+        list(methods),
+        index=0,
+        help=(
+            "A = full TF-IDF space. B = rank-300 SVD latent space. "
+            "C = 200-dimensional learned metric on the SVD space. D = C fused with A. "
+            "G = pretrained transformer embeddings + SVD features through the same least-squares map."
+        ),
+    )
+    method_key = methods[label]
+    st.markdown(
+        f'<div class="method-note">{METHOD_BLURB[method_key]}'
+        f"<br><br>Held-out Precision@10: <strong>{PRECISION[method_key]:.3f}</strong></div>",
+        unsafe_allow_html=True,
+    )
+    topk = st.slider("Recommendations to return", 3, 20, 5)
+    st.markdown("---")
+    st.markdown('<div class="sidebar-section">Corpus</div>', unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    c1.metric("Papers", f"{n_papers:,}")
+    c2.metric("Domains", n_domains)
+    st.markdown(
+        '<div class="sidebar-note">Test-set Precision@10 — '
+        "A 0.699 · B 0.712 · C 0.799 · D 0.801 · G 0.881</div>",
+        unsafe_allow_html=True,
+    )
+    if not encoders:
+        st.markdown(
+            '<div class="sidebar-note">Approach G is unavailable until torch, '
+            "sentence-transformers, and data/paper_embeddings.npz are present.</div>",
+            unsafe_allow_html=True,
+        )
+
+st.markdown(
+    '<div class="search-panel"><div class="panel-title">Query</div></div>',
+    unsafe_allow_html=True,
+)
+query = st.text_input(
+    "Research query",
+    value="adversarial attacks on image classifiers",
+    label_visibility="collapsed",
+    placeholder="Describe the topic, method, or problem you want papers about",
+)
 
 if query.strip():
-    res, dt, topics = recommend(query, M, methods[label], topk, encoders)
-    st.success(f"Top {topk} papers • {label} • {dt:.1f} ms")
-    st.caption("Predicted topics for this query: " + " · ".join(f"{t} ({s:.2f})" for t, s in topics))
-    for _, row in res.iterrows():
-        with st.container(border=True):
-            c1, c2 = st.columns([5, 1])
-            c1.markdown(f"**{row['title']}**")
-            c2.metric("similarity", f"{row['similarity']:.3f}")
-            meta = []
-            if pd.notna(row["authors"]):
-                meta.append(str(row["authors"])[:120])
-            if pd.notna(row["year"]):
-                meta.append(str(int(row["year"])))
-            if pd.notna(row["venue"]):
-                meta.append(str(row["venue"]))
-            st.caption(" · ".join(meta) + f"  ·  _{row['domain']}_")
-            with st.expander("Abstract"):
-                st.write(row["abstract"])
+    res, dt, topics = recommend(query, M, method_key, topk, encoders)
+    topic_str = " · ".join(f"{esc(t)} ({s:.2f})" for t, s in topics)
+    st.markdown(
+        f"""
+<div class="result-bar">
+  <div class="summary">{topk} recommendations</div>
+  <div class="meta">{esc(label)} · {dt:.1f} ms</div>
+</div>
+<div class="topics"><strong>Predicted topics</strong> — {topic_str}</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    for i, row in res.iterrows():
+        authors = esc(str(row["authors"])[:110]) if pd.notna(row["authors"]) else ""
+        year = str(int(row["year"])) if pd.notna(row["year"]) else ""
+        venue = esc(str(row["venue"])) if pd.notna(row["venue"]) else ""
+        domain = esc(row["domain"]) if pd.notna(row["domain"]) else ""
+        meta_bits = [b for b in (authors, year, venue) if b]
+        meta = " · ".join(meta_bits)
+        st.markdown(
+            f"""
+<div class="paper">
+  <div class="rank">{i + 1:02d}</div>
+  <div>
+    <div class="paper-title">{esc(row["title"])}</div>
+    <p class="paper-meta">{meta}</p>
+    <span class="domain">{domain}</span>
+  </div>
+  <div class="score">
+    <div class="num">{row["similarity"]:.3f}</div>
+    <div class="lbl">Similarity</div>
+  </div>
+</div>
+            """,
+            unsafe_allow_html=True,
+        )
+        with st.expander("Abstract"):
+            st.write(row["abstract"] if pd.notna(row["abstract"]) else "No abstract available.")
+elif not query.strip():
+    st.markdown(
+        '<div class="topics">Enter a research query above to retrieve ranked papers from the corpus.</div>',
+        unsafe_allow_html=True,
+    )
