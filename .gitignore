@@ -33,6 +33,7 @@ report/
 
 # Editable Word source of the checkpoint-2 report (the PDF is the submitted copy)
 Group_05.docx
+Group_05.pdf
 
 # Downloaded transformer weights and other local caches (about 1 GB, re-downloaded on first use)
 .cache/
