@@ -1,0 +1,252 @@
+{
+  "n_papers": 9956,
+  "n_val": 3000,
+  "n_test": 6911,
+  "n_topics": 1846,
+  "config": {
+    "S_F": 2.0,
+    "LAMBDA_F": 3.0,
+    "R_F": 300,
+    "W_FUSE": 0.5,
+    "fusion_grid_val_ndcg": {
+      "0.0": 0.8865909897861778,
+      "0.2": 0.8899846985318185,
+      "0.3": 0.8919729655027259,
+      "0.4": 0.8925601013345017,
+      "0.5": 0.8926873539009924,
+      "0.6": 0.8923075099855211
+    }
+  },
+  "encoders": {
+    "minilm": {
+      "label": "MiniLM-L6",
+      "hf_name": "sentence-transformers/all-MiniLM-L6-v2",
+      "max_len": 256,
+      "dims": 384,
+      "layers": 6,
+      "params": "23 M",
+      "trained_on": "over 1 billion general sentence pairs"
+    },
+    "specter": {
+      "label": "SPECTER",
+      "hf_name": "sentence-transformers/allenai-specter",
+      "max_len": 384,
+      "dims": 768,
+      "layers": 12,
+      "params": "110 M",
+      "trained_on": "scientific papers, with citation links as the training signal"
+    },
+    "bge": {
+      "label": "BGE-base",
+      "hf_name": "BAAI/bge-base-en-v1.5",
+      "max_len": 384,
+      "dims": 768,
+      "layers": 12,
+      "params": "109 M",
+      "trained_on": "large-scale general retrieval pairs"
+    }
+  },
+  "random": {
+    "P@10": 0.07529119062114344,
+    "Hit@10": 0.48052006583608653
+  },
+  "models": [
+    {
+      "name": "TF-IDF baseline",
+      "family": "classical",
+      "uses_labels": false,
+      "dims": 31291,
+      "P@1": 0.7953986398495153,
+      "P@5": 0.7380408045145573,
+      "P@10": 0.699016061351475,
+      "MRR": 0.8633349066245879,
+      "nDCG@10": 0.7198250577346225,
+      "Hit@10": 0.9733757777456229
+    },
+    {
+      "name": "Best classical ML (SVD + least squares + TF-IDF)",
+      "family": "classical",
+      "uses_labels": true,
+      "dims": 31491,
+      "P@1": 0.8552,
+      "P@5": 0.8207,
+      "P@10": 0.8014,
+      "MRR": 0.891,
+      "nDCG@10": 0.8126,
+      "Hit@10": 0.954
+    },
+    {
+      "name": "MiniLM-L6 alone",
+      "family": "deep learning",
+      "uses_labels": false,
+      "dims": 384,
+      "P@1": 0.902329619447258,
+      "P@5": 0.8626537404138428,
+      "P@10": 0.8313268702069138,
+      "MRR": 0.9342770209902309,
+      "nDCG@10": 0.8477187961544254,
+      "Hit@10": 0.9859644045724207
+    },
+    {
+      "name": "SPECTER alone",
+      "family": "deep learning",
+      "uses_labels": false,
+      "dims": 768,
+      "P@1": 0.8962523513239763,
+      "P@5": 0.8512805672117044,
+      "P@10": 0.8188250614961609,
+      "MRR": 0.9291439572983485,
+      "nDCG@10": 0.8361082068450892,
+      "Hit@10": 0.9816234987700767
+    },
+    {
+      "name": "BGE-base alone",
+      "family": "deep learning",
+      "uses_labels": false,
+      "dims": 768,
+      "P@1": 0.9152076399942122,
+      "P@5": 0.8702647952539565,
+      "P@10": 0.8373751989581798,
+      "MRR": 0.9433365947546231,
+      "nDCG@10": 0.8550295624297076,
+      "Hit@10": 0.9881348574735929
+    },
+    {
+      "name": "Embeddings (3 encoders)",
+      "family": "deep learning",
+      "uses_labels": false,
+      "dims": 1920,
+      "P@1": 0.9227318767182752,
+      "P@5": 0.8821588771523775,
+      "P@10": 0.8523223846042522,
+      "MRR": 0.9478506200145607,
+      "nDCG@10": 0.8684912504241815,
+      "Hit@10": 0.9878454637534365
+    },
+    {
+      "name": "Learned metric (300-d)",
+      "family": "deep learning",
+      "uses_labels": true,
+      "dims": 300,
+      "P@1": 0.9201273332368688,
+      "P@5": 0.8907538706410127,
+      "P@10": 0.8720300969468927,
+      "MRR": 0.9403817930008054,
+      "nDCG@10": 0.8829734283215106,
+      "Hit@10": 0.9761250180871075
+    },
+    {
+      "name": "Deep fusion",
+      "family": "deep learning",
+      "uses_labels": true,
+      "dims": 2220,
+      "P@1": 0.929966719722182,
+      "P@5": 0.8987411373173277,
+      "P@10": 0.8777022138619562,
+      "MRR": 0.9497496514643082,
+      "nDCG@10": 0.8896164704090364,
+      "Hit@10": 0.9826363767906237
+    }
+  ],
+  "by_domain": [
+    {
+      "domain": "Machine Learning",
+      "queries": 1351,
+      "TF-IDF baseline": 0.613101406365655,
+      "Embeddings (3 encoders)": 0.7844559585492228,
+      "Deep fusion": 0.8245743893412287
+    },
+    {
+      "domain": "Software Engineering",
+      "queries": 1315,
+      "TF-IDF baseline": 0.6690494296577947,
+      "Embeddings (3 encoders)": 0.8180988593155895,
+      "Deep fusion": 0.8361216730038022
+    },
+    {
+      "domain": "Artificial Intelligence",
+      "queries": 1261,
+      "TF-IDF baseline": 0.709278350515464,
+      "Embeddings (3 encoders)": 0.8865186360031722,
+      "Deep fusion": 0.9105471847739889
+    },
+    {
+      "domain": "Computer Vision",
+      "queries": 987,
+      "TF-IDF baseline": 0.6315096251266463,
+      "Embeddings (3 encoders)": 0.8037487335359675,
+      "Deep fusion": 0.8371833839918947
+    },
+    {
+      "domain": "Natural Language Processing",
+      "queries": 1008,
+      "TF-IDF baseline": 0.804265873015873,
+      "Embeddings (3 encoders)": 0.9011904761904763,
+      "Deep fusion": 0.9182539682539683
+    },
+    {
+      "domain": "Cybersecurity",
+      "queries": 989,
+      "TF-IDF baseline": 0.8032355915065724,
+      "Embeddings (3 encoders)": 0.9456016177957534,
+      "Deep fusion": 0.9627906976744186
+    }
+  ],
+  "density": [
+    {
+      "band": "below 0.6",
+      "share": 0.004196208942265953,
+      "TF-IDF baseline": 0.27241379310344827,
+      "Deep fusion": 0.43103448275862066
+    },
+    {
+      "band": "0.6 - 0.7",
+      "share": 0.14498625379829258,
+      "TF-IDF baseline": 0.4644710578842316,
+      "Deep fusion": 0.6746506986027944
+    },
+    {
+      "band": "0.7 - 0.8",
+      "share": 0.6285631601794242,
+      "TF-IDF baseline": 0.6906077348066298,
+      "Deep fusion": 0.8893416206261511
+    },
+    {
+      "band": "0.8 or more",
+      "share": 0.22225437708001736,
+      "TF-IDF baseline": 0.8838541666666666,
+      "Deep fusion": 0.9856770833333334
+    }
+  ],
+  "audit": [
+    {
+      "protocol": "In-sample (invalid: model saw both papers' labels)",
+      "P@1": 0.9581826074374186,
+      "P@5": 0.9412820141802957,
+      "P@10": 0.9252351323976262,
+      "MRR": 0.9684379399760671,
+      "nDCG@10": 0.9334972138997086,
+      "Hit@10": 0.9855303139921864
+    },
+    {
+      "protocol": "Ordinary out-of-fold (full rank)",
+      "P@1": 0.9205614238171032,
+      "P@5": 0.8959629576038254,
+      "P@10": 0.8750832006945436,
+      "MRR": 0.9404972059725346,
+      "nDCG@10": 0.885826747679419,
+      "Hit@10": 0.974533352626248
+    },
+    {
+      "protocol": "Pairwise exclusion (reported)",
+      "P@1": 0.9201273332368688,
+      "P@5": 0.8907538706410127,
+      "P@10": 0.8720300969468927,
+      "MRR": 0.9403817930008054,
+      "nDCG@10": 0.8829734283215106,
+      "Hit@10": 0.9761250180871075
+    }
+  ],
+  "trained_at": "2026-11-11 19:57",
+  "train_seconds": 25.6
+}

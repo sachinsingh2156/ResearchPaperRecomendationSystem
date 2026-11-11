@@ -1,0 +1,40 @@
+# ---------------------------------------------------------------------------
+# Research Paper Recommendation System - what is NOT uploaded to GitHub
+# ---------------------------------------------------------------------------
+
+# Python virtual environment (1.7 GB; recreate with: pip install -r requirements.txt)
+.venv/
+venv/
+env/
+
+# Python caches and build leftovers
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Jupyter autosave copies
+.ipynb_checkpoints/
+
+# Operating-system and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.claude/
+
+# Streamlit local settings and secrets
+.streamlit/
+
+# Working material for the checkpoint-2 report: screenshot scripts, screenshots,
+# and HTML exports that duplicate the notebooks. The submitted report itself
+# (Group_05.pdf) is kept.
+report/
+
+# Editable Word source of the checkpoint-2 report (the PDF is the submitted copy)
+Group_05.docx
+
+# Downloaded transformer weights and other local caches (about 1 GB, re-downloaded on first use)
+.cache/
+hf_cache/
+*.log
